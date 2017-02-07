@@ -72,7 +72,7 @@ module.exports = function(grunt) {
         stripBanners: true
       },
       stageone: {
-        src: ['assets/js/src/sources.js','assets/js/src/main-babel.js'],
+        src: [/*'assets/js/src/plugins.js',*/'assets/js/src/main-babel.js'],
         dest: 'assets/js/scripts-concat.js',
       }
     },
