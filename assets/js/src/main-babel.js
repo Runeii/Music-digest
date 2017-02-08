@@ -57,33 +57,44 @@ function pullLastFMLibrary(remoteData, callback) {
     }
 }
 function pullLastFMArtistDetails(callback) {
-    if (!localStorage.getItem('lastfm_artists')) {
+    if (!localStorage.getItem('lastfm_artists_details')) {
         var details = [];
         var dataset = [];
         temp = lastfmArtists();
-        temp.length = 5;
+        temp.length = 100;
         var i = 0;
         temp.forEach(function (e) {
             var lastpage = Math.ceil(e.playcount / 50);
             $.getJSON('http://ws.audioscrobbler.com/2.0/?method=user.getartisttracks&api_key=' + creds.lastfm.key + '&user=' + creds.lastfm.user + '&artist=' + encodeURI(e.name) + '&page=' + lastpage + '&format=json', function (remoteData) {
-                var first = remoteData.artisttracks.track.pop();
-                details.push({
-                    name: e.name,
-                    mbid: e.mbid,
-                    playcount: e.playcount,
-                    firstlisten: Date.UTC(first.date.uts),
-                    firsttrack: {
-                        name: first.name,
-                        mbid: first.mbid,
-                        album: first.album
+                if (remoteData.artisttracks.track.length > 0) {
+                    var first = remoteData.artisttracks.track.pop();
+                    details.push({
+                        name: e.name,
+                        mbid: e.mbid,
+                        playcount: e.playcount,
+                        firstlisten: new Date(first.date['#text']),
+                        firsttrack: {
+                            name: first.name,
+                            mbid: first.mbid,
+                            album: first.album
+                        }
+                    });
+                    i++;
+                    console.log(i + 'of' + temp.length);
+                    if (i == temp.length) {
+                        localStorage.setItem('lastfm_artists_details', JSON.stringify(details));
+                        temp = [];
+                        callback();
                     }
-                });
-                i++;
-                console.log(i + 'of' + temp.length);
-                if (i == temp.length) {
-                    localStorage.setItem('lastfm_artists_details', JSON.stringify(details));
-                    temp = [];
-                    callback();
+                } else {
+                    i++;
+                    console.error('Issue with artist name: ' + e.name + '. Sent as ' + encodeURI(e.name));
+                    console.error(i + 'of' + temp.length);
+                    if (i == temp.length) {
+                        localStorage.setItem('lastfm_artists_details', JSON.stringify(details));
+                        temp = [];
+                        callback();
+                    }
                 }
             });
         });
@@ -96,16 +107,22 @@ function initialiseTimeline() {
     var dataset = new vis.DataSet();
     details.forEach(function (e) {
         dataset.add({
-            label: e.name,
+            title: e.name,
             y: e.playcount,
-            x: e.firstlisten,
-            group: 1
+            start: e.firstlisten,
+            tooltip: e.playcount
         });
     });
+    var options = {
+        dataAttributes: ['name', 'firsttrack.name'],
+        type: 'point',
+        order: function order(nodedata) {
+            return nodedata.playcount;
+        }
+    };
     var container = document.createElement('container');
     document.body.appendChild(container);
-
-    var Graph2d = new vis.Graph2d(container, dataset);
+    var timeline = new vis.Timeline(container, dataset, options);
 }
 
 if (storageAvailable('localStorage')) {
